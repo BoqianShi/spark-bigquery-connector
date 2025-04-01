@@ -1122,7 +1122,6 @@ public class BigQueryUtilTest {
     assertThat(result.getPositionalParameters()).isEmpty();
   }
 
-
   @Test
   public void testParseParameters_ErrorMixedNamedAndPositional() {
     Map<String, String> options = new HashMap<>();
