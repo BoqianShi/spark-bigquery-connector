@@ -216,7 +216,6 @@ class ReadFromQueryIntegrationTestBase extends SparkBigQueryIntegrationTestBase 
   @Test
   public void testReadWithNamedParameters() {
     listener.reset();
-    // Hardcoded named parameter query
     String namedParamQuery =
         "SELECT word, word_count FROM `bigquery-public-data.samples.shakespeare`" +
             " WHERE corpus = @corpus AND word_count >= @min_word_count ORDER BY word_count DESC";
@@ -224,13 +223,12 @@ class ReadFromQueryIntegrationTestBase extends SparkBigQueryIntegrationTestBase 
     Dataset<Row> df = spark
         .read()
         .format("bigquery")
-        .option("query", namedParamQuery) // Use hardcoded query
+        .option("query", namedParamQuery)
         .option("viewsEnabled", "true")
         .option("NamedParameters.corpus", "STRING:romeoandjuliet")
         .option("NamedParameters.min_word_count", "INT64:250")
         .load();
 
-    // Hardcoded expected schema
     StructType expectedSchema =
         DataTypes.createStructType(
             ImmutableList.of(
@@ -251,7 +249,6 @@ class ReadFromQueryIntegrationTestBase extends SparkBigQueryIntegrationTestBase 
   @Test
   public void testReadWithPositionalParameters() {
     listener.reset();
-    // Hardcoded positional parameter query
     String positionalParamQuery =
         "SELECT word, word_count FROM `bigquery-public-data.samples.shakespeare`" +
             " WHERE corpus = ? AND word_count >= ? ORDER BY word_count DESC";
@@ -265,7 +262,6 @@ class ReadFromQueryIntegrationTestBase extends SparkBigQueryIntegrationTestBase 
         .option("PositionalParameters.2", "INT64:250")
         .load();
 
-    // Hardcoded expected schema
     StructType expectedSchema =
         DataTypes.createStructType(
             ImmutableList.of(
@@ -280,13 +276,11 @@ class ReadFromQueryIntegrationTestBase extends SparkBigQueryIntegrationTestBase 
     JobInfo jobInfo = jobInfos.iterator().next();
     assertThat(jobInfo.getConfiguration().getType()).isEqualTo(JobConfiguration.Type.QUERY);
     QueryJobConfiguration queryConfig = jobInfo.getConfiguration();
-    assertThat(queryConfig.getQuery()).isEqualTo(positionalParamQuery); // Compare with hardcoded query
-    // Assertions for specific positional parameters in JobInfo if needed/possible
+    assertThat(queryConfig.getQuery()).isEqualTo(positionalParamQuery);
   }
 
   @Test
   public void testReadWithMixedParametersFails() {
-    // Hardcoded named parameter query (could be positional too, doesn't matter for the failure)
     String queryForFailure =
         "SELECT word, word_count FROM `bigquery-public-data.samples.shakespeare`" +
             " WHERE corpus = @corpus AND word_count >= @min_word_count ORDER BY word_count DESC";
