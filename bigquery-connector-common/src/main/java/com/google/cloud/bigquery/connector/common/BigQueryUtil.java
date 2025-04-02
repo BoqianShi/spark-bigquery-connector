@@ -1112,6 +1112,6 @@ public class BigQueryUtil {
                   .collect(Collectors.joining(", ")),
           e);
     }
-    return QueryParameterValue.newBuilder().setValue(valueStr).setType(type).build();
+    return QueryParameterValue.newBuilder().setValue(valueStr.trim()).setType(type).build();
   }
 }
