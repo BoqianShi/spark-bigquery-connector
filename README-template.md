@@ -246,14 +246,12 @@ from. This may add additional costs on your BigQuery account.
 
 
 The connector supports executing BigQuery parameterized queries using the
-standard `spark.read.format('bigquery')` API. This leverages BigQuery's native
-support for named (`@param`) and positional (`?`) parameters, improving security
-and query reusability.
+standard `spark.read.format('bigquery')` API.
 
 To use parameterized queries:
 
 1. Provide the SQL query containing parameters using the
-   `.option("query", "SQL_STRING")`.
+   `.option("query", "SQL_STRING")` with named (`@param`) or positional (`?`) parameters.
 2. Specify the parameter values using dedicated options:
     * **Named Parameters:** Use options prefixed with `NamedParameters.`. The
       parameter name follows the prefix (case-insensitive).
