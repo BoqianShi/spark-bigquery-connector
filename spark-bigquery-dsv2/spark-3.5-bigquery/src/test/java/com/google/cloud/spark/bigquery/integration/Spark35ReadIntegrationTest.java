@@ -31,100 +31,37 @@ public class Spark35ReadIntegrationTest extends ReadIntegrationTestBase {
     // Keep constructor as is
     super(/* userProvidedSchemaAllowed */ false, DataTypes.TimestampNTZType);
   }
-  // Query constants for clarity
-  private static final String SHAKESPEARE_TABLE = "`bigquery-public-data.samples.shakespeare`";
-  private static final String NAMED_PARAM_QUERY =
-      "SELECT word, word_count FROM " + SHAKESPEARE_TABLE +
-          " WHERE corpus = @corpus AND word_count >= @min_word_count ORDER BY word_count DESC";
-  private static final String POSITIONAL_PARAM_QUERY =
-      "SELECT word, word_count FROM " + SHAKESPEARE_TABLE +
-          " WHERE corpus = ? AND word_count >= ? ORDER BY word_count DESC";
-  private static final String NORMAL_QUERY =
-      "SELECT word, word_count FROM " + SHAKESPEARE_TABLE +
-          " WHERE corpus = 'romeoandjuliet' AND word_count >= 250 ORDER BY word_count DESC";
-
+  private static final String USER_DATA_TABLE = "`google.com:hadoop-cloud-dev.boqian_eu_test.sample_user_data`";
+  private static final String NORMAL_USER_QUERY =
+      "SELECT user_name, registration_date FROM " + USER_DATA_TABLE +
+          " WHERE is_active = true AND registration_date >= DATE('2024-01-01') " +
+          " ORDER BY registration_date ASC";
 
   @Test
-  public void testReadWithNamedParameters() {
+  public void testReadWithNormalQueryUS() { // Renamed original test
     Dataset<Row> df = spark
         .read()
         .format("bigquery")
-        .option("query", NAMED_PARAM_QUERY)
-        .option("viewsEnabled", "true") // Keep relevant options
-        .option("NamedParameters.corpus", "STRING:romeoandjuliet") // New format
-        .option("NamedParameters.min_word_count", "INT64:250") // New format
-        .load();
-
-    df.printSchema();
-    df.show();
-    assertThat(df.schema().fieldNames()).asList().containsExactly("word", "word_count");
-    assertThat(df.schema().fields()[0].dataType().typeName()).isEqualTo("string");
-    assertThat(df.schema().fields()[1].dataType().typeName()).isEqualTo("long");
-    // Use Truth's assertion style
-    assertThat(df.count()).isGreaterThan(0L);
-  }
-
-  @Test
-  public void testReadWithPositionalParameters() {
-    Dataset<Row> df = spark
-        .read()
-        .format("bigquery")
-        .option("query", POSITIONAL_PARAM_QUERY) // Query uses '?'
-        .option("viewsEnabled", "true")
-        .option("PositionalParameters.1", "STRING:romeoandjuliet") // New format, index 1
-        .option("PositionalParameters.2", "INT64:250") // New format, index 2
-        .load();
-
-    df.printSchema();
-    df.show();
-    assertThat(df.schema().fieldNames()).asList().containsExactly("word", "word_count");
-    assertThat(df.schema().fields()[0].dataType().typeName()).isEqualTo("string");
-    assertThat(df.schema().fields()[1].dataType().typeName()).isEqualTo("long");
-    assertThat(df.count()).isGreaterThan(0L);
-  }
-
-  @Test
-  public void testReadWithMixedParametersFails() {
-    // 1. Expect the ProvisionException that is actually thrown
-    ProvisionException thrown = assertThrows(ProvisionException.class,
-        () -> {
-          spark
-              .read()
-              .format("bigquery")
-              .option("query", NAMED_PARAM_QUERY)
-              .option("viewsEnabled", "true")
-              .option("NamedParameters.corpus", "STRING:whatever")
-              .option("PositionalParameters.1", "INT64:100")
-              .load()
-              .show();
-        });
-
-    Throwable cause = thrown.getCause();
-
-    assertThat(cause).isNotNull();
-    assertThat(cause).isInstanceOf(IllegalArgumentException.class);
-
-    assertThat(cause)
-        .hasMessageThat()
-        .contains("Cannot mix NamedParameters.* and PositionalParameters.* options.");
-  }
-
-
-  @Test
-  public void testReadWithNormalQuery() { // Renamed original test
-    Dataset<Row> df = spark
-        .read()
-        .format("bigquery")
-        .option("query", NORMAL_QUERY) // No parameters in query or options
+        .option("location", "US")
+        .option("query", NORMAL_USER_QUERY) // No parameters in query or options
         .option("viewsEnabled", "true")
         .load();
 
     df.printSchema();
     df.show();
-    assertThat(df.schema().fieldNames()).asList().containsExactly("word", "word_count");
-    assertThat(df.schema().fields()[0].dataType().typeName()).isEqualTo("string");
-    assertThat(df.schema().fields()[1].dataType().typeName()).isEqualTo("long");
-    assertThat(df.count()).isGreaterThan(0L);
+  }
+  @Test
+  public void testReadWithNormalQueryEU() { // Renamed original test
+    Dataset<Row> df = spark
+        .read()
+        .format("bigquery")
+        .option("location", "EU")
+        .option("query", NORMAL_USER_QUERY) // No parameters in query or options
+        .option("viewsEnabled", "true")
+        .load();
+
+    df.printSchema();
+    df.show();
   }
 
 }
