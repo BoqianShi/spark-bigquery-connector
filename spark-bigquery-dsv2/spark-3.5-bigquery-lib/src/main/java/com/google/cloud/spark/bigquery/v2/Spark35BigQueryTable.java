@@ -18,14 +18,14 @@ package com.google.cloud.spark.bigquery.v2;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.spark.bigquery.SparkBigQueryConfig;
 import com.google.cloud.spark.bigquery.SparkBigQueryUtil;
+import com.google.cloud.spark.bigquery.v2.context.BigQueryDataSourceReaderContext;
 import com.google.inject.Injector;
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.connector.catalog.Identifier;
-import org.apache.spark.sql.connector.catalog.TableCatalog;
 import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.connector.write.LogicalWriteInfo;
 import org.apache.spark.sql.connector.write.WriteBuilder;
@@ -52,19 +52,20 @@ public class Spark35BigQueryTable extends Spark34BigQueryTable {
     // Check if Iceberg direct read is enabled and if the table is an Iceberg table
     if (config.enableIcebergDirectRead() && tableId != null) {
       try {
-        // Get the BigQuery table info to check if it's an Iceberg table
-        TableInfo tableInfo = getTableInfo();
+        // Create the reader context to get table information
+        BigQueryDataSourceReaderContext ctx = createBigQueryDataSourceReaderContext(options);
+        TableInfo tableInfo = ctx.getTableInfo();
         
         if (tableInfo != null && SparkBigQueryUtil.isIcebergTable(tableInfo)) {
           // Try to load the Iceberg table using reflection to avoid compile-time dependency
-          Optional<ScanBuilder> icebergScanBuilder = createIcebergScanBuilder(options);
+          Optional<ScanBuilder> icebergScanBuilder = createIcebergScanBuilder(tableInfo, options);
           if (icebergScanBuilder.isPresent()) {
             return icebergScanBuilder.get();
           }
         }
       } catch (Exception e) {
         // Fall back to standard BigQuery read if Iceberg read fails
-        // Log the exception but continue with normal flow
+        // This is expected if Iceberg is not on the classpath or if there are configuration issues
       }
     }
     
@@ -72,52 +73,64 @@ public class Spark35BigQueryTable extends Spark34BigQueryTable {
     return super.newScanBuilder(options);
   }
 
-  private TableInfo getTableInfo() {
-    try {
-      SparkBigQueryConfig config = injector.getInstance(SparkBigQueryConfig.class);
-      // Use reflection or direct access to get BigQueryClient and fetch table info
-      // For now, we'll use the config's table helper if available
-      return null; // Placeholder - will be implemented with proper BigQueryClient access
-    } catch (Exception e) {
-      return null;
-    }
-  }
-
-  private Optional<ScanBuilder> createIcebergScanBuilder(CaseInsensitiveStringMap options) {
+  private Optional<ScanBuilder> createIcebergScanBuilder(
+      TableInfo tableInfo, CaseInsensitiveStringMap options) {
     try {
       SparkSession spark = injector.getInstance(SparkSession.class);
       SparkBigQueryConfig config = injector.getInstance(SparkBigQueryConfig.class);
       
-      // Get the Iceberg catalog and load the Iceberg table
-      // The Iceberg table location is stored as metadata in BigQuery
-      String icebergTableLocation = getIcebergTableLocation();
-      if (icebergTableLocation == null) {
+      // Get the Iceberg metadata location from the BigQuery table properties
+      String metadataLocation = getIcebergMetadataLocation(tableInfo);
+      if (metadataLocation == null || metadataLocation.isEmpty()) {
         return Optional.empty();
       }
       
-      // Use reflection to load Iceberg classes to avoid compile-time dependency
+      // Use reflection to load Iceberg table without compile-time dependency
+      Class<?> hadoopTablesClass = Class.forName("org.apache.iceberg.hadoop.HadoopTables");
+      Object hadoopTables = hadoopTablesClass.getConstructor().newInstance();
+      
+      // Load the Iceberg table
+      Method loadMethod = hadoopTablesClass.getMethod("load", String.class);
+      Object icebergTable = loadMethod.invoke(hadoopTables, metadataLocation);
+      
+      // Create SparkTable wrapper
       Class<?> sparkTableClass = Class.forName("org.apache.iceberg.spark.SparkTable");
-      Class<?> catalogClass = Class.forName("org.apache.iceberg.spark.SparkCatalog");
+      Class<?> tableClass = Class.forName("org.apache.iceberg.Table");
+      Object sparkTable = sparkTableClass
+          .getConstructor(tableClass, Boolean.TYPE)
+          .newInstance(icebergTable, false);
       
-      // Create an Iceberg table identifier
-      String[] namespace = new String[] {config.getTableId().getDataset()};
-      Identifier identifier = Identifier.of(namespace, config.getTableId().getTable());
+      // Get the scan builder from the Iceberg table
+      Method newScanBuilderMethod = sparkTableClass.getMethod(
+          "newScanBuilder", CaseInsensitiveStringMap.class);
+      ScanBuilder icebergScanBuilder = 
+          (ScanBuilder) newScanBuilderMethod.invoke(sparkTable, options);
       
-      // Load the Iceberg table through reflection
-      // This is a placeholder - actual implementation would need proper Iceberg table loading
-      return Optional.empty();
+      return Optional.of(icebergScanBuilder);
     } catch (ClassNotFoundException e) {
-      // Iceberg classes not available on classpath
+      // Iceberg classes not available on classpath - expected when Iceberg is not provided
       return Optional.empty();
     } catch (Exception e) {
       // Any other error - fall back to standard read
+      // This could be due to missing metadata location, permission issues, etc.
       return Optional.empty();
     }
   }
 
-  private String getIcebergTableLocation() {
-    // Placeholder - needs to be implemented to fetch Iceberg metadata location from BigQuery
-    // This would typically come from the table's metadata/properties
-    return null;
+  private String getIcebergMetadataLocation(TableInfo tableInfo) {
+    // BigQuery stores the Iceberg metadata location in the table's options/properties
+    // The exact key depends on how BigQuery exposes Iceberg table metadata
+    try {
+      // Attempt to get metadata location from table options
+      Map<String, String> tableOptions = tableInfo.getDefinition().toBuilder().build().toBuilder().build().toString();
+      // This is a placeholder - the actual implementation would need to extract
+      // the metadata location from BigQuery's table definition
+      // Common patterns:
+      // - tableInfo.getLabels().get("iceberg_metadata_location")
+      // - tableInfo.getDefinition().getSchema().getFields() for metadata
+      return null;
+    } catch (Exception e) {
+      return null;
+    }
   }
 }
