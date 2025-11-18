@@ -296,6 +296,22 @@ public class SparkBigQueryUtil {
     return typeConverters.stream();
   }
 
+  /**
+   * Checks if a BigQuery table is an Iceberg table by examining its table type.
+   *
+   * @param table The BigQuery TableInfo to check
+   * @return true if the table is an Iceberg table, false otherwise
+   */
+  public static boolean isIcebergTable(TableInfo table) {
+    if (table == null) {
+      return false;
+    }
+    // BigQuery Iceberg tables have a specific table type
+    // Check if the table type is "ICEBERG" or contains iceberg metadata
+    String tableType = table.getDefinition().getType().toString();
+    return "ICEBERG".equalsIgnoreCase(tableType);
+  }
+
   @NotNull
   public static ImmutableMap<String, String> extractJobLabels(SparkConf sparkConf) {
     Builder<String, String> labels = ImmutableMap.builder();

@@ -86,6 +86,10 @@ public interface BigQueryConfig {
 
   Optional<ImmutableList<String>> getCredentialsScopes();
 
+  default boolean enableIcebergDirectRead() {
+    return false;
+  }
+
   default int getClientCreationHashCode() {
     return Objects.hashCode(
         getAccessTokenProviderFQCN(),

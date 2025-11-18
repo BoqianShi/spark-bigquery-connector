@@ -263,6 +263,7 @@ public class SparkBigQueryConfig
   private int bigNumericDefaultPrecision;
   private int bigNumericDefaultScale;
   private QueryParameterHelper queryParameterHelper;
+  private boolean enableIcebergDirectRead = false;
 
   @VisibleForTesting
   SparkBigQueryConfig() {
@@ -704,6 +705,8 @@ public class SparkBigQueryConfig
             .transform(Integer::parseInt)
             .or(BigQueryUtil.DEFAULT_BIG_NUMERIC_SCALE);
     config.queryParameterHelper = BigQueryUtil.parseQueryParameters(options);
+    config.enableIcebergDirectRead =
+        getAnyBooleanOption(globalOptions, options, "enableIcebergDirectRead", false);
     return config;
   }
 
@@ -1213,6 +1216,11 @@ public class SparkBigQueryConfig
 
   public int getBigNumericDefaultScale() {
     return bigNumericDefaultScale;
+  }
+
+  @Override
+  public boolean enableIcebergDirectRead() {
+    return enableIcebergDirectRead;
   }
 
   public ReadSessionCreatorConfig toReadSessionCreatorConfig() {
