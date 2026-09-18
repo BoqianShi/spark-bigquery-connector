@@ -76,16 +76,16 @@ public class Spark3UtilTest {
   }
 
   @Test
-  public void testGetSchemaOrThrow_throwsBigQueryConnectorExceptionWithProject() {
+  public void testGetSchemaOrThrow_throwsTableNotFoundExceptionWithProject() {
     BigQueryClient bigQueryClient = mock(BigQueryClient.class);
     SparkBigQueryConfig config = mock(SparkBigQueryConfig.class);
     when(config.getTableId())
         .thenReturn(TableId.of("bigquery-public-data", "thelook1_ecommerce", "orders"));
     when(bigQueryClient.getReadTableSchema(any())).thenReturn(null);
 
-    BigQueryConnectorException exception =
+    Spark3Util.TableNotFoundException exception =
         assertThrows(
-            BigQueryConnectorException.class,
+            Spark3Util.TableNotFoundException.class,
             () -> Spark3Util.getSchemaOrThrow(bigQueryClient, config, null));
 
     assertThat(exception)
@@ -94,15 +94,15 @@ public class Spark3UtilTest {
   }
 
   @Test
-  public void testGetSchemaOrThrow_throwsBigQueryConnectorExceptionWithoutProject() {
+  public void testGetSchemaOrThrow_throwsTableNotFoundExceptionWithoutProject() {
     BigQueryClient bigQueryClient = mock(BigQueryClient.class);
     SparkBigQueryConfig config = mock(SparkBigQueryConfig.class);
     when(config.getTableId()).thenReturn(TableId.of("thelook1_ecommerce", "orders"));
     when(bigQueryClient.getReadTableSchema(any())).thenReturn(null);
 
-    BigQueryConnectorException exception =
+    Spark3Util.TableNotFoundException exception =
         assertThrows(
-            BigQueryConnectorException.class,
+            Spark3Util.TableNotFoundException.class,
             () -> Spark3Util.getSchemaOrThrow(bigQueryClient, config, null));
 
     assertThat(exception).hasMessageThat().isEqualTo("Table thelook1_ecommerce.orders not found");
@@ -129,6 +129,31 @@ public class Spark3UtilTest {
     // A null schema lets Spark call getTable(null, ...), which is what makes writing a DataFrame
     // to a brand new BigQuery table keep working.
     assertThat(provider.inferSchema(EMPTY_OPTIONS)).isNull();
+    // Resolving the table's schema for a read still reports the missing table.
+    Spark3Util.TableNotFoundException exception =
+        assertThrows(
+            Spark3Util.TableNotFoundException.class,
+            () -> provider.getBigQueryTableInternal(EMPTY_OPTIONS).schema());
+    assertThat(exception).hasMessageThat().isEqualTo("Table p.d.missing_table not found");
+  }
+
+  @Test
+  public void testTableProviderInferSchema_doesNotDependOnTableNotFoundMessage() {
+    Spark31BigQueryTableProvider provider =
+        providerWithSchemaException(new Spark3Util.TableNotFoundException("Missing table"));
+
+    assertThat(provider.inferSchema(EMPTY_OPTIONS)).isNull();
+  }
+
+  @Test
+  public void testTableProviderInferSchema_rethrowsUnrelatedNotFoundException() {
+    BigQueryConnectorException original = new BigQueryConnectorException("Credentials not found");
+    Spark31BigQueryTableProvider provider = providerWithSchemaException(original);
+
+    BigQueryConnectorException exception =
+        assertThrows(BigQueryConnectorException.class, () -> provider.inferSchema(EMPTY_OPTIONS));
+
+    assertThat(exception).isSameInstanceAs(original);
   }
 
   @Test
@@ -145,5 +170,17 @@ public class Spark3UtilTest {
         assertThrows(BigQueryConnectorException.class, () -> provider.inferSchema(EMPTY_OPTIONS));
 
     assertThat(exception).hasMessageThat().isEqualTo("Authentication failed");
+  }
+
+  private Spark31BigQueryTableProvider providerWithSchemaException(
+      BigQueryConnectorException exception) {
+    Table table = mock(Table.class);
+    when(table.schema()).thenThrow(exception);
+    return new Spark31BigQueryTableProvider() {
+      @Override
+      protected Table getBigQueryTableInternal(Map<String, String> properties) {
+        return table;
+      }
+    };
   }
 }

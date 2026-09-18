@@ -66,10 +66,16 @@ public class Spark3Util {
     }
     Schema schemaFromTable = bigQueryClient.getReadTableSchema(config.toReadTableOptions());
     if (schemaFromTable == null) {
-      throw new BigQueryConnectorException(
+      throw new TableNotFoundException(
           "Table " + BigQueryUtil.friendlyTableName(config.getTableId()) + " not found");
     }
     return SchemaConverters.from(SchemaConvertersConfiguration.from(config))
         .toSpark(schemaFromTable);
+  }
+
+  static class TableNotFoundException extends BigQueryConnectorException {
+    TableNotFoundException(String message) {
+      super(message);
+    }
   }
 }

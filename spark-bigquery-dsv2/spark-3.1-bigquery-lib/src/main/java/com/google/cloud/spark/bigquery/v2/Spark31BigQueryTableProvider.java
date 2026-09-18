@@ -20,7 +20,6 @@ import static com.google.cloud.bigquery.connector.common.BigQueryUtil.formatTabl
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
-import com.google.cloud.bigquery.connector.common.BigQueryConnectorException;
 import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.spark.bigquery.InjectorBuilder;
 import com.google.cloud.spark.bigquery.SparkBigQueryConfig;
@@ -71,11 +70,8 @@ public class Spark31BigQueryTableProvider extends BaseBigQuerySource
   public StructType inferSchema(CaseInsensitiveStringMap options) {
     try {
       return getBigQueryTableInternal(options).schema();
-    } catch (BigQueryConnectorException e) {
-      if (e.getMessage() != null && e.getMessage().endsWith(" not found")) {
-        return null;
-      }
-      throw e;
+    } catch (Spark3Util.TableNotFoundException e) {
+      return null;
     }
   }
 
