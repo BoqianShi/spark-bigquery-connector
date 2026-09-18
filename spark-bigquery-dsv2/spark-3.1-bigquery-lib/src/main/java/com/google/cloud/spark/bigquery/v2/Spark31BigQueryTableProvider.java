@@ -20,6 +20,7 @@ import static com.google.cloud.bigquery.connector.common.BigQueryUtil.formatTabl
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryConnectorException;
 import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.spark.bigquery.InjectorBuilder;
 import com.google.cloud.spark.bigquery.SparkBigQueryConfig;
@@ -54,9 +55,28 @@ public class Spark31BigQueryTableProvider extends BaseBigQuerySource
 
   private static final Transform[] EMPTY_TRANSFORM_ARRAY = {};
 
+  /**
+   * Returns the schema of the BigQuery table, or {@code null} if the table does not exist yet.
+   *
+   * <p>As {@link #supportsExternalMetadata()} is {@code false}, Spark calls this method before
+   * {@link #getTable} on both the read and the write paths. Returning {@code null} for a missing
+   * table keeps {@code df.write.format("bigquery").save()} working against a table that has yet to
+   * be created: Spark passes the {@code null} on to {@code getTable}, and since the table only
+   * advertises {@code V1_BATCH_WRITE} the write falls back to the V1 {@link
+   * org.apache.spark.sql.sources.CreatableRelationProvider} path, which never resolves the schema.
+   * On the read path Spark does resolve it, and {@code Table.schema()} then surfaces the same
+   * exception with a readable message.
+   */
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    return getBigQueryTableInternal(options).schema();
+    try {
+      return getBigQueryTableInternal(options).schema();
+    } catch (BigQueryConnectorException e) {
+      if (e.getMessage() != null && e.getMessage().endsWith(" not found")) {
+        return null;
+      }
+      throw e;
+    }
   }
 
   @Override

@@ -1184,16 +1184,18 @@ public class ReadIntegrationTestBase extends SparkBigQueryIntegrationTestBaseV2 
 
   @Test
   public void testNonExistentSchema() {
-    assertThrows(
-        "Trying to read a non existing table should throw an exception",
-        RuntimeException.class,
-        () -> {
-          testRunner.run(
-              ReadIntegrationTestBase::readSchemaMetadataApp,
-              "",
-              "",
-              ImmutableMap.of("scenario", "NON_EXISTENT"));
-        });
+    RuntimeException exception =
+        assertThrows(
+            "Trying to read a non existing table should throw an exception",
+            RuntimeException.class,
+            () -> {
+              testRunner.run(
+                  ReadIntegrationTestBase::readSchemaMetadataApp,
+                  "",
+                  "",
+                  ImmutableMap.of("scenario", "NON_EXISTENT"));
+            });
+    assertThat(exception).hasMessageThat().contains("Table " + NON_EXISTENT_TABLE + " not found");
   }
 
   @Test(timeout = 10_000) // 10 seconds
