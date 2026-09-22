@@ -83,9 +83,9 @@ public class Spark3UtilTest {
         .thenReturn(TableId.of("bigquery-public-data", "thelook1_ecommerce", "orders"));
     when(bigQueryClient.getReadTableSchema(any())).thenReturn(null);
 
-    Spark3Util.TableNotFoundException exception =
+    TableNotFoundException exception =
         assertThrows(
-            Spark3Util.TableNotFoundException.class,
+            TableNotFoundException.class,
             () -> Spark3Util.getSchemaOrThrow(bigQueryClient, config, null));
 
     assertThat(exception)
@@ -100,9 +100,9 @@ public class Spark3UtilTest {
     when(config.getTableId()).thenReturn(TableId.of("thelook1_ecommerce", "orders"));
     when(bigQueryClient.getReadTableSchema(any())).thenReturn(null);
 
-    Spark3Util.TableNotFoundException exception =
+    TableNotFoundException exception =
         assertThrows(
-            Spark3Util.TableNotFoundException.class,
+            TableNotFoundException.class,
             () -> Spark3Util.getSchemaOrThrow(bigQueryClient, config, null));
 
     assertThat(exception).hasMessageThat().isEqualTo("Table thelook1_ecommerce.orders not found");
@@ -130,9 +130,9 @@ public class Spark3UtilTest {
     // to a brand new BigQuery table keep working.
     assertThat(provider.inferSchema(EMPTY_OPTIONS)).isNull();
     // Resolving the table's schema for a read still reports the missing table.
-    Spark3Util.TableNotFoundException exception =
+    TableNotFoundException exception =
         assertThrows(
-            Spark3Util.TableNotFoundException.class,
+            TableNotFoundException.class,
             () -> provider.getBigQueryTableInternal(EMPTY_OPTIONS).schema());
     assertThat(exception).hasMessageThat().isEqualTo("Table p.d.missing_table not found");
   }
@@ -140,7 +140,7 @@ public class Spark3UtilTest {
   @Test
   public void testTableProviderInferSchema_doesNotDependOnTableNotFoundMessage() {
     Spark31BigQueryTableProvider provider =
-        providerWithSchemaException(new Spark3Util.TableNotFoundException("Missing table"));
+        providerWithSchemaException(new TableNotFoundException("Missing table"));
 
     assertThat(provider.inferSchema(EMPTY_OPTIONS)).isNull();
   }

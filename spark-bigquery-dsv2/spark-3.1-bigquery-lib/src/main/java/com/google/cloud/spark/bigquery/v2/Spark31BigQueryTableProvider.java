@@ -70,7 +70,7 @@ public class Spark31BigQueryTableProvider extends BaseBigQuerySource
   public StructType inferSchema(CaseInsensitiveStringMap options) {
     try {
       return getBigQueryTableInternal(options).schema();
-    } catch (Spark3Util.TableNotFoundException e) {
+    } catch (TableNotFoundException e) {
       return null;
     }
   }

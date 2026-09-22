@@ -17,7 +17,6 @@ package com.google.cloud.spark.bigquery.v2;
 
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
-import com.google.cloud.bigquery.connector.common.BigQueryConnectorException;
 import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.bigquery.connector.common.UserAgentProvider;
 import com.google.cloud.spark.bigquery.DataSourceVersion;
@@ -71,11 +70,5 @@ public class Spark3Util {
     }
     return SchemaConverters.from(SchemaConvertersConfiguration.from(config))
         .toSpark(schemaFromTable);
-  }
-
-  static class TableNotFoundException extends BigQueryConnectorException {
-    TableNotFoundException(String message) {
-      super(message);
-    }
   }
 }
