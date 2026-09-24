@@ -2,6 +2,8 @@
 
 ## Next
 
+* Issue #1520: Fixed ClassCastException when reading BigQuery DATETIME columns with
+  `readDataFormat=AVRO` on Spark 3.4+.
 ## 0.45.0 - 2026-08-21
 
 * `spark-4.1-bigquery` is generally available!

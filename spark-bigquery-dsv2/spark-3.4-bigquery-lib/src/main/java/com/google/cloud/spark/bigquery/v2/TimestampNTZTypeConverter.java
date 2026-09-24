@@ -18,12 +18,31 @@ package com.google.cloud.spark.bigquery.v2;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.storage.v1.CivilTimeEncoder;
+import com.google.cloud.spark.bigquery.SparkBigQueryUtil;
 import com.google.cloud.spark.bigquery.TypeConverter;
 import com.google.protobuf.DescriptorProtos;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.util.Locale;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
 public class TimestampNTZTypeConverter implements TypeConverter<Long> {
+
+  private static final DateTimeFormatter BQ_AVRO_DATETIME =
+      new DateTimeFormatterBuilder()
+          .append(DateTimeFormatter.ISO_LOCAL_DATE)
+          .optionalStart()
+          .appendLiteral('T')
+          .optionalEnd()
+          .optionalStart()
+          .appendLiteral(' ')
+          .optionalEnd()
+          .append(DateTimeFormatter.ISO_LOCAL_TIME)
+          .toFormatter(Locale.ROOT);
+
   @Override
   public DataType toSparkType(LegacySQLTypeName bigQueryType) {
     if (supportsBigQueryType(bigQueryType)) {
@@ -72,5 +91,13 @@ public class TimestampNTZTypeConverter implements TypeConverter<Long> {
             javaLocalTime.getSecond(),
             javaLocalTime.getNano());
     return CivilTimeEncoder.encodePacked64DatetimeMicros(threeTenLocalTime);
+  }
+
+  @Override
+  public Long avroToSparkValue(Object avroValue) {
+    CharSequence text =
+        avroValue instanceof CharSequence ? (CharSequence) avroValue : avroValue.toString();
+    LocalDateTime localDateTime = LocalDateTime.parse(text, BQ_AVRO_DATETIME);
+    return SparkBigQueryUtil.sparkTimestampToBigQuery(localDateTime.toInstant(ZoneOffset.UTC));
   }
 }

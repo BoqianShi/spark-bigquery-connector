@@ -589,6 +589,7 @@ public class ReadByFormatIntegrationTestBase extends SparkBigQueryIntegrationTes
       String testDataset, String testTable, Map<String, String> parameters) throws Exception {
 
     String expectedTypeName = parameters.get("ntzTypeName");
+    String format = parameters.get("dataFormat");
 
     @SuppressWarnings("resource")
     SparkSession spark =
@@ -615,6 +616,7 @@ public class ReadByFormatIntegrationTestBase extends SparkBigQueryIntegrationTes
               .format("bigquery")
               .option("dataset", testDataset)
               .option("table", testTable)
+              .option("readDataFormat", format)
               .load();
 
       StructType schema = df.schema();
@@ -641,7 +643,8 @@ public class ReadByFormatIntegrationTestBase extends SparkBigQueryIntegrationTes
             ReadByFormatIntegrationTestBase::readTimestampNTZApp,
             testDataset.toString(),
             testTable,
-            ImmutableMap.of("ntzTypeName", timeStampNTZType.get().typeName()));
+            ImmutableMap.of(
+                "ntzTypeName", timeStampNTZType.get().typeName(), "dataFormat", dataFormat));
 
     assertThat(result.get("status").getAsString()).isEqualTo("success");
     assertThat(result.get("typeCorrect").getAsBoolean()).isTrue();
